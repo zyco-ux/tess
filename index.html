@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Tesla Investments | Trade Crypto & Stocks</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-tertiary: #141414;
+            --bg-card: #1a1a1a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666666;
+            --tesla-red: #e82127;
+            --tesla-red-hover: #c41a1f;
+            --emerald-500: #10b981;
+            --blue-500: #3b82f6;
+            --gold-400: #f59e0b;
+            --glass-border: rgba(255,255,255,0.08);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+            font-size: 14px;
+        }
+
+        /* ===== TESLA STYLE PRELOADER ===== */
+        .preloader {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+        .preloader.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .preloader-logo {
+            width: 80px; height: 80px;
+            perspective: 500px;
+            margin-bottom: 2rem;
+        }
+        .preloader-cube {
+            width: 80px; height: 80px;
+            position: relative;
+            transform-style: preserve-3d;
+            animation: cubeSpin 2s infinite ease-in-out;
+        }
+        @keyframes cubeSpin {
+            0% { transform: rotateX(0deg) rotateY(0deg); }
+            25% { transform: rotateX(90deg) rotateY(90deg); }
+            50% { transform: rotateX(180deg) rotateY(180deg); }
+            75% { transform: rotateX(270deg) rotateY(270deg); }
+            100% { transform: rotateX(360deg) rotateY(360deg); }
+        }
+        .cube-face {
+            position: absolute;
+            width: 80px; height: 80px;
+            background: linear-gradient(135deg, #e82127, #c41a1f);
+            border: 2px solid rgba(255,255,255,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 900;
+            color: #fff;
+            backface-visibility: visible;
+        }
+        .cube-front { transform: translateZ(40px); }
+        .cube-back { transform: rotateY(180deg) translateZ(40px); }
+        .cube-right { transform: rotateY(90deg) translateZ(40px); }
+        .cube-left { transform: rotateY(-90deg) translateZ(40px); }
+        .cube-top { transform: rotateX(90deg) translateZ(40px); }
+        .cube-bottom { transform: rotateX(-90deg) translateZ(40px); }
+
+        .preloader-counter {
+            font-size: 3rem;
+            font-weight: 900;
+            letter-spacing: -2px;
+            background: linear-gradient(135deg, #e82127, #f87171);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        .preloader-text {
+            font-size: 0.8rem;
+            color: #666;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .preloader-bar {
+            width: 200px;
+            height: 3px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            margin-top: 1.5rem;
+            overflow: hidden;
+        }
+        .preloader-bar-fill {
+            height: 100%;
+            background: #e82127;
+            border-radius: 2px;
+            transition: width 0.1s linear;
+        }
+
+        /* ===== SCROLLING TICKER ===== */
+        .ticker-wrap {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--glass-border);
+            z-index: 999;
+            padding: 0.4rem 0;
+            overflow: hidden;
+            white-space: nowrap;
+            display: none;
+        }
+        .ticker-wrap.active { display: block; }
+        .ticker {
+            display: inline-block;
+            animation: tickerScroll 30s linear infinite;
+        }
+        .ticker-item {
+            display: inline-block;
+            margin: 0 1.5rem;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+        .ticker-item .price-up { color: var(--emerald-500); }
+        .ticker-item .price-down { color: #ef4444; }
+        @keyframes tickerScroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* ===== DESKTOP NAVBAR ===== */
+        .desktop-navbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            z-index: 1000;
+            padding: 0.7rem 0;
+            display: block;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .tesla-logo { width: 32px; height: 32px; }
+
+        .nav-brand {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            list-style: none;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.78rem;
+            font-weight: 500;
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+        }
+        .nav-link:hover { color: var(--text-primary); }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--tesla-red);
+            transition: width 0.3s ease;
+        }
+        .nav-link:hover::after { width: 100%; }
+
+        .nav-btns { display: flex; gap: 0.75rem; }
+
+        .btn {
+            padding: 0.55rem 1.25rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary { background: var(--tesla-red); color: #fff; }
+        .btn-primary:hover { background: var(--tesla-red-hover); transform: translateY(-2px); box-shadow: 0 8px 25px rgba(232,33,39,0.3); }
+        .btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: var(--text-primary); }
+        .btn-outline:hover { border-color: rgba(255,255,255,0.4); transform: translateY(-2px); }
+        .btn-success { background: var(--emerald-500); color: #fff; }
+        .btn-success:hover { opacity: 0.8; transform: translateY(-2px); }
+        .btn-sm { padding: 0.4rem 1rem; font-size: 0.7rem; }
+
+        /* ===== MOBILE TOP HEADER ===== */
+        .mobile-top-header {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            padding: 0.6rem 1rem;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(20px);
+            z-index: 999;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .mobile-brand { font-size: 0.9rem; font-weight: 700; letter-spacing: -0.3px; }
+
+        .mobile-menu-btn {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.2rem;
+        }
+
+        /* ===== MOBILE SIDEBAR MENU ===== */
+        .mobile-sidebar {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 300px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--glass-border);
+            z-index: 9999;
+            transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+            padding: 2rem 1.5rem;
+            overflow-y: auto;
+        }
+        .mobile-sidebar.active { right: 0; }
+
+        .mobile-sidebar-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            float: right;
+        }
+
+        .mobile-sidebar .nav-link {
+            display: block;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--glass-border);
+            font-size: 0.9rem;
+        }
+
+        .mobile-sidebar .nav-btns {
+            flex-direction: column;
+            margin-top: 1.5rem;
+        }
+        .mobile-sidebar .nav-btns .btn { width: 100%; justify-content: center; }
+
+        .mobile-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 9998;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        .mobile-overlay.active { opacity: 1; visibility: visible; }
+
+        /* ===== HERO ===== */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 8rem 2rem 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-bg {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: 
+                radial-gradient(ellipse at 20% 50%, rgba(232,33,39,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 50%, rgba(232,33,39,0.05) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .hero-image {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.08;
+            pointer-events: none;
+        }
+
+        .hero-content { max-width: 800px; position: relative; z-index: 1; }
+
+        .hero-badge {
+            display: inline-block;
+            padding: 0.35rem 0.9rem;
+            background: rgba(232,33,39,0.12);
+            border: 1px solid rgba(232,33,39,0.25);
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #f87171;
+            margin-bottom: 1.25rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .hero-title {
+            font-size: 4rem;
+            font-weight: 800;
+            letter-spacing: -2px;
+            line-height: 1.05;
+            margin-bottom: 1.25rem;
+        }
+
+        .hero-title span {
+            background: linear-gradient(135deg, #e82127, #f87171);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 2rem;
+            line-height: 1.7;
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+        }
+
+        .hero-stat { text-align: center; }
+        .hero-stat-number { font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; }
+        .hero-stat-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 0.2rem; }
+
+        .hero-btns { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .hero-btns .btn { padding: 0.8rem 2rem; font-size: 0.95rem; }
+
+        /* ===== SECTIONS ===== */
+        .section { padding: 5rem 2rem; }
+        .section-container { max-width: 1200px; margin: 0 auto; }
+        .section-header { text-align: center; margin-bottom: 3.5rem; }
+        .section-label { 
+            font-size: 0.7rem; 
+            text-transform: uppercase; 
+            letter-spacing: 3px; 
+            color: #f87171; 
+            margin-bottom: 0.75rem; 
+            font-weight: 600;
+        }
+        .section-title { font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 0.75rem; }
+        .section-desc { font-size: 1rem; color: var(--text-secondary); max-width: 600px; margin: 0 auto; }
+
+        .section-alt { background: var(--bg-secondary); }
+
+        /* ===== TRUST BANNER ===== */
+        .trust-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .trust-item { text-align: center; }
+        .trust-number { font-size: 1.8rem; font-weight: 800; color: var(--text-primary); }
+        .trust-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* ===== FEATURES GRID ===== */
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
+        .feature-card {
+            background: var(--bg-card); border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg); padding: 1.75rem; 
+            transition: var(--transition);
+            text-align: center;
+            overflow: hidden;
+            position: relative;
+        }
+        .feature-card:hover { 
+            border-color: rgba(255,255,255,0.15); 
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+        .feature-card .feature-img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: var(--radius-sm);
+            margin-bottom: 1rem;
+        }
+        .feature-icon { 
+            width: 56px; height: 56px; 
+            background: rgba(232,33,39,0.1); 
+            border-radius: 12px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 1.6rem; 
+            margin: 0 auto 1rem; 
+        }
+        .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
+        .feature-card p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; }
+
+        /* ===== MARKETS GRID ===== */
+        .markets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+        }
+        .market-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem 1rem;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+        }
+        .market-card:hover {
+            border-color: var(--tesla-red);
+            transform: translateY(-4px);
+        }
+        .market-card .market-img {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 0.5rem;
+            display: block;
+        }
+        .market-card .icon { font-size: 2.2rem; margin-bottom: 0.5rem; }
+        .market-card h4 { font-size: 0.9rem; font-weight: 600; }
+        .market-card p { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; }
+        .market-card .btn { margin-top: 0.75rem; padding: 0.3rem 1rem; font-size: 0.65rem; width: auto; }
+
+        /* ===== LIVE MARKET OVERVIEW ===== */
+        .market-overview-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1rem;
+        }
+        .market-overview-grid .left { display: flex; flex-direction: column; gap: 0.75rem; }
+        .market-overview-grid .right { display: flex; flex-direction: column; gap: 0.75rem; }
+
+        .market-stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .market-stat-card .symbol { font-weight: 600; }
+        .market-stat-card .price { font-weight: 700; }
+        .market-stat-card .change { font-size: 0.75rem; font-weight: 600; }
+
+        /* ===== INVESTMENT PRODUCTS ===== */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .product-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            text-align: center;
+            transition: var(--transition);
+            overflow: hidden;
+        }
+        .product-card:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-3px); }
+        .product-card .product-img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 0.5rem;
+            display: block;
+        }
+        .product-card .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .product-card h4 { font-size: 0.9rem; font-weight: 600; }
+        .product-card p { font-size: 0.7rem; color: var(--text-muted); }
+
+        /* ===== STEPS ===== */
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            position: relative;
+        }
+        .step-card { text-align: center; padding: 1.5rem; }
+        .step-number {
+            width: 56px; height: 56px;
+            background: var(--tesla-red);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin: 0 auto 1rem;
+            box-shadow: 0 4px 20px rgba(232,33,39,0.3);
+        }
+        .step-card .step-img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 1rem;
+            display: block;
+            border: 2px solid var(--glass-border);
+        }
+        .step-card h3 { font-size: 1rem; margin-bottom: 0.3rem; }
+        .step-card p { color: var(--text-secondary); font-size: 0.8rem; }
+
+        /* ===== SECURITY ===== */
+        .security-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .security-item {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .security-item .sec-img {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 0.5rem;
+            display: block;
+        }
+        .security-item .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .security-item h4 { font-size: 0.9rem; font-weight: 600; }
+        .security-item p { font-size: 0.7rem; color: var(--text-muted); }
+
+        /* ===== TESTIMONIALS ===== */
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.25rem;
+        }
+        .testimonial-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+        }
+        .testimonial-card .testimonial-img {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 0.5rem;
+        }
+        .testimonial-card .stars { color: var(--gold-400); font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .testimonial-card .review { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; }
+        .testimonial-card .author {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        .testimonial-card .author .avatar {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            background: var(--tesla-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.8rem;
+            color: #fff;
+        }
+        .testimonial-card .author .name { font-weight: 600; font-size: 0.8rem; }
+        .testimonial-card .author .role { font-size: 0.65rem; color: var(--text-muted); }
+
+        /* ===== FAQ ===== */
+        .faq-list { max-width: 800px; margin: 0 auto; }
+        .faq-item {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            margin-bottom: 0.75rem;
+            overflow: hidden;
+        }
+        .faq-question {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .faq-question:hover { background: rgba(255,255,255,0.02); }
+        .faq-question .arrow { transition: transform 0.3s; }
+        .faq-question.active .arrow { transform: rotate(180deg); }
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            padding: 0 1.25rem;
+        }
+        .faq-answer.active {
+            max-height: 200px;
+            padding: 0 1.25rem 1rem;
+        }
+        .faq-answer p { color: var(--text-secondary); font-size: 0.85rem; }
+
+        /* ===== MOBILE APP ===== */
+        .app-promo {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: center;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .app-mockups {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        .app-mockup {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: 1rem 0.75rem;
+            width: 160px;
+            text-align: center;
+        }
+        .app-mockup .app-screen-img {
+            width: 100%;
+            height: 240px;
+            object-fit: cover;
+            border-radius: var(--radius-md);
+        }
+        .app-mockup .label { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem; }
+        .app-buttons { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+
+        /* ===== CTA BANNER ===== */
+        .cta-banner {
+            background: linear-gradient(135deg, #1a0000, #0a0a0a);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: 3rem 2rem;
+            text-align: center;
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            overflow: hidden;
+        }
+        .cta-banner .cta-bg-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.1;
+        }
+        .cta-banner h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: 0.75rem; position: relative; z-index: 1; }
+        .cta-banner p { color: var(--text-secondary); margin-bottom: 1.5rem; position: relative; z-index: 1; }
+        .cta-banner .btn { position: relative; z-index: 1; }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            border-top: 1px solid var(--glass-border);
+            padding: 3rem 2rem 1.5rem;
+        }
+        .footer-grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr repeat(4, 1fr);
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        .footer h4 { font-size: 0.8rem; margin-bottom: 0.75rem; color: var(--text-primary); }
+        .footer ul { list-style: none; }
+        .footer ul li { margin-bottom: 0.4rem; }
+        .footer ul li a { 
+            color: var(--text-muted); 
+            text-decoration: none; 
+            font-size: 0.75rem; 
+            transition: var(--transition); 
+        }
+        .footer ul li a:hover { color: var(--text-primary); }
+        .footer-social { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
+        .footer-social a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 1.2rem;
+            transition: var(--transition);
+        }
+        .footer-social a:hover { color: var(--text-primary); }
+        .footer-bottom {
+            text-align: center;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--glass-border);
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            width: 90%;
+            max-width: 420px;
+            position: relative;
+            animation: modalIn 0.3s ease;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .modal-close {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: rgba(255,255,255,0.05);
+            border: none;
+            color: var(--text-secondary);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .modal h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.3rem; text-align: center; }
+        .modal p { color: var(--text-muted); text-align: center; margin-bottom: 1.25rem; font-size: 0.78rem; }
+        .modal .form-group { margin-bottom: 0.75rem; }
+        .modal .form-label {
+            display: block;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+        }
+        .modal .form-input {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            background: var(--bg-tertiary);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .modal .form-input:focus { outline: none; border-color: var(--tesla-red); }
+        .modal .btn { width: 100%; padding: 0.7rem; margin-top: 0.3rem; }
+        .error-msg {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #ef4444;
+            padding: 0.4rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            margin-bottom: 0.75rem;
+            display: none;
+        }
+        .error-msg.show { display: block; }
+        .success-msg {
+            background: rgba(16,185,129,0.1);
+            border: 1px solid rgba(16,185,129,0.3);
+            color: #10b981;
+            padding: 0.4rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            margin-bottom: 0.75rem;
+            display: none;
+        }
+        .success-msg.show { display: block; }
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 0.3rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .modal-tabs {
+            display: flex;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 0.2rem;
+            margin-bottom: 1rem;
+        }
+        .modal-tab {
+            flex: 1;
+            padding: 0.45rem;
+            text-align: center;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.75rem;
+            border: none;
+            background: none;
+            color: var(--text-muted);
+        }
+        .modal-tab.active { background: var(--tesla-red); color: #fff; }
+        .form-section { display: none; }
+        .form-section.active { display: block; }
+
+        /* ===== SECTION IMAGE BANNER ===== */
+        .section-banner-img {
+            width: 100%;
+            max-height: 400px;
+            object-fit: cover;
+            border-radius: var(--radius-xl);
+            margin-bottom: 2rem;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 992px) {
+            .market-overview-grid { grid-template-columns: 1fr; }
+            .app-promo { grid-template-columns: 1fr; text-align: center; }
+            .app-mockups { flex-direction: row; }
+            .footer-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .desktop-navbar { display: none !important; }
+            .mobile-top-header { display: flex; }
+            body { padding-top: 56px; }
+
+            .hero { padding: 4rem 1rem 2rem; min-height: auto; }
+            .hero-title { font-size: 2rem; }
+            .hero-subtitle { font-size: 0.85rem; }
+            .hero-stats { gap: 1rem; }
+            .hero-stat-number { font-size: 1.4rem; }
+            .hero-stat-label { font-size: 0.55rem; }
+            .hero-btns .btn { padding: 0.6rem 1.2rem; font-size: 0.8rem; }
+
+            .section { padding: 3rem 1rem; }
+            .section-title { font-size: 1.6rem; }
+            .section-desc { font-size: 0.85rem; }
+
+            .features-grid { grid-template-columns: 1fr; }
+            .markets-grid { grid-template-columns: 1fr 1fr; }
+            .products-grid { grid-template-columns: 1fr 1fr; }
+            .security-grid { grid-template-columns: 1fr 1fr; }
+            .testimonials-grid { grid-template-columns: 1fr; }
+            .steps-grid { grid-template-columns: 1fr 1fr; }
+            .trust-grid { grid-template-columns: 1fr 1fr; padding: 1.5rem; }
+
+            .cta-banner { padding: 2rem 1.5rem; }
+            .cta-banner h2 { font-size: 1.5rem; }
+
+            .app-mockup { width: 120px; }
+            .app-mockup .app-screen-img { height: 180px; }
+
+            .footer-grid { grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+            .footer { padding: 2rem 1rem 1rem; }
+
+            .modal { padding: 1.5rem; }
+
+            .mobile-sidebar { width: 280px; }
+        }
+
+        @media (max-width: 480px) {
+            .markets-grid { grid-template-columns: 1fr 1fr; }
+            .products-grid { grid-template-columns: 1fr; }
+            .security-grid { grid-template-columns: 1fr; }
+            .steps-grid { grid-template-columns: 1fr; }
+            .trust-grid { grid-template-columns: 1fr 1fr; }
+            .app-mockup { width: 100px; }
+            .app-mockup .app-screen-img { height: 150px; }
+            .footer-grid { grid-template-columns: 1fr; }
+            .hero-title { font-size: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ===== TESLA STYLE 3D PRELOADER ===== -->
+    <div class="preloader" id="preloader">
+        <div class="preloader-logo">
+            <div class="preloader-cube">
+                <div class="cube-face cube-front">T</div>
+                <div class="cube-face cube-back">I</div>
+                <div class="cube-face cube-right">◆</div>
+                <div class="cube-face cube-left">◆</div>
+                <div class="cube-face cube-top">T</div>
+                <div class="cube-face cube-bottom">I</div>
+            </div>
+        </div>
+        <div class="preloader-counter" id="preloaderCounter">0%</div>
+        <div class="preloader-text">Loading Tesla Investments</div>
+        <div class="preloader-bar">
+            <div class="preloader-bar-fill" id="preloaderBar" style="width:0%;"></div>
+        </div>
+    </div>
+
+    <!-- ===== MOBILE OVERLAY ===== -->
+    <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
+
+    <!-- ===== MOBILE SIDEBAR ===== -->
+    <div class="mobile-sidebar" id="mobileSidebar">
+        <button class="mobile-sidebar-close" onclick="closeMobileMenu()">✕</button>
+        <div style="margin-top:1rem;">
+            <a class="nav-link" href="#features" onclick="closeMobileMenu()">Features</a>
+            <a class="nav-link" href="#markets" onclick="closeMobileMenu()">Markets</a>
+            <a class="nav-link" href="#products" onclick="closeMobileMenu()">Products</a>
+            <a class="nav-link" href="#pricing" onclick="closeMobileMenu()">Pricing</a>
+            <a class="nav-link" href="#platform" onclick="closeMobileMenu()">Platform</a>
+            <a class="nav-link" href="#learn" onclick="closeMobileMenu()">Learn</a>
+            <a class="nav-link" href="#about" onclick="closeMobileMenu()">About</a>
+            <a class="nav-link" href="#contact" onclick="closeMobileMenu()">Contact</a>
+            <div class="nav-btns">
+                <button class="btn btn-outline" onclick="openModal('login'); closeMobileMenu();">Log In</button>
+                <button class="btn btn-primary" onclick="openModal('register'); closeMobileMenu();">Open Account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MOBILE TOP HEADER ===== -->
+    <div class="mobile-top-header">
+        <div class="mobile-logo" style="display:flex;align-items:center;gap:0.5rem;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L2 7v10l10 5 10-5V7L12 2z" fill="#e82127" stroke="#e82127" stroke-width="1"/>
+                <text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7" font-weight="900">T</text>
+            </svg>
+            <span class="mobile-brand">Tesla Investments</span>
+        </div>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+    </div>
+
+    <!-- ===== DESKTOP NAVBAR ===== -->
+    <nav class="desktop-navbar">
+        <div class="nav-container">
+            <a href="#" class="nav-logo">
+                <svg class="tesla-logo" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 7v10l10 5 10-5V7L12 2z" fill="#e82127" stroke="#e82127" stroke-width="1"/>
+                    <text x="12" y="15" text-anchor="middle" fill="#fff" font-size="7" font-weight="900">T</text>
+                </svg>
+                <span class="nav-brand">Tesla Investments</span>
+            </a>
+            <ul class="nav-links">
+                <li><a class="nav-link" href="#features">Features</a></li>
+                <li><a class="nav-link" href="#markets">Markets</a></li>
+                <li><a class="nav-link" href="#products">Products</a></li>
+                <li><a class="nav-link" href="#pricing">Pricing</a></li>
+                <li><a class="nav-link" href="#platform">Platform</a></li>
+                <li><a class="nav-link" href="#learn">Learn</a></li>
+                <li><a class="nav-link" href="#about">About</a></li>
+                <li><a class="nav-link" href="#contact">Contact</a></li>
+            </ul>
+            <div class="nav-btns">
+                <button class="btn btn-outline" onclick="openModal('login')">Log In</button>
+                <button class="btn btn-primary" onclick="openModal('register')">Open Account</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ===== HERO ===== -->
+    <section class="hero" id="hero">
+        <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1920&h=1080&fit=crop" alt="Stock Market" class="hero-image">
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+            <div class="hero-badge">🚀 Trusted by 500,000+ Investors</div>
+            <h1 class="hero-title">Invest in the Future<br>with <span>Tesla Investments</span></h1>
+            <p class="hero-subtitle">Trade stocks, crypto, ETFs, and more with zero commission. Real-time data, advanced analytics, and institutional-grade security.</p>
+            <div class="hero-stats">
+                <div class="hero-stat"><div class="hero-stat-number">$2B+</div><div class="hero-stat-label">Volume Traded</div></div>
+                <div class="hero-stat"><div class="hero-stat-number">500K+</div><div class="hero-stat-label">Active Users</div></div>
+                <div class="hero-stat"><div class="hero-stat-number">150+</div><div class="hero-stat-label">Countries</div></div>
+                <div class="hero-stat"><div class="hero-stat-number">99.99%</div><div class="hero-stat-label">Uptime</div></div>
+            </div>
+            <div class="hero-btns">
+                <button class="btn btn-primary" onclick="openModal('register')">Open Account →</button>
+                <button class="btn btn-outline" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">Learn More</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== TRUST BANNER ===== -->
+    <section class="section" style="padding-top:0;">
+        <div class="section-container">
+            <div class="trust-grid">
+                <div class="trust-item"><div class="trust-number">$2B+</div><div class="trust-label">Assets Traded</div></div>
+                <div class="trust-item"><div class="trust-number">500K+</div><div class="trust-label">Active Users</div></div>
+                <div class="trust-item"><div class="trust-number">150+</div><div class="trust-label">Countries</div></div>
+                <div class="trust-item"><div class="trust-number">99.99%</div><div class="trust-label">Uptime</div></div>
+                <div class="trust-item"><div class="trust-number">4.8★</div><div class="trust-label">Satisfaction</div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== WHY CHOOSE US ===== -->
+    <section class="section section-alt" id="features">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Why Choose Us</div>
+                <h2 class="section-title">Built for Modern Investors</h2>
+                <p class="section-desc">Everything you need to manage your investments in one powerful platform</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=200&fit=crop" alt="Commission Free" class="feature-img">
+                    <div class="feature-icon">💰</div>
+                    <h3>Commission-Free Investing</h3>
+                    <p>Trade stocks and ETFs with zero commissions. Lowest spreads on crypto.</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1614027164847-1b28cfe1df60?w=400&h=200&fit=crop" alt="Lightning Fast" class="feature-img">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Lightning-Fast Execution</h3>
+                    <p>Millisecond trade execution with real-time market data.</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=400&h=200&fit=crop" alt="Security" class="feature-img">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Institutional-Grade Security</h3>
+                    <p>256-bit encryption, 2FA, biometric login, and cold storage.</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=200&fit=crop" alt="Analytics" class="feature-img">
+                    <div class="feature-icon">📊</div>
+                    <h3>Advanced Analytics</h3>
+                    <p>AI-powered insights, interactive charts, and real-time market analysis.</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=400&h=200&fit=crop" alt="Fractional" class="feature-img">
+                    <div class="feature-icon">🧩</div>
+                    <h3>Fractional Investing</h3>
+                    <p>Start investing with any amount. Own fractions of expensive stocks.</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=200&fit=crop" alt="Automated" class="feature-img">
+                    <div class="feature-icon">🤖</div>
+                    <h3>Automated Investing</h3>
+                    <p>Set up recurring investments and automatic portfolio rebalancing.</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=400&h=200&fit=crop" alt="Mobile" class="feature-img">
+                    <div class="feature-icon">📱</div>
+                    <h3>Mobile Trading</h3>
+                    <p>Full trading functionality on mobile, tablet, and desktop.</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=400&h=200&fit=crop" alt="Instant" class="feature-img">
+                    <div class="feature-icon">💳</div>
+                    <h3>Instant Deposits</h3>
+                    <p>Deposit funds instantly via crypto or bank transfer.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== MARKETS AVAILABLE ===== -->
+    <section class="section" id="markets">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Markets</div>
+                <h2 class="section-title">Trade Global Markets</h2>
+                <p class="section-desc">Access a wide range of asset classes from one platform</p>
+            </div>
+            <div class="markets-grid">
+                <div class="market-card">
+                    <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=200&h=200&fit=crop&crop=center" alt="Stocks" class="market-img">
+                    <h4>Stocks</h4>
+                    <p>Trade global stocks</p>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('register')">Trade Now</button>
+                </div>
+                <div class="market-card">
+                    <img src="https://images.unsplash.com/photo-1614027164847-1b28cfe1df60?w=200&h=200&fit=crop&crop=center" alt="ETFs" class="market-img">
+                    <h4>ETFs</h4>
+                    <p>Diversified portfolios</p>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('register')">Trade Now</button>
+                </div>
+                <div class="market-card">
+                    <img src="https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=200&h=200&fit=crop&crop=center" alt="Crypto" class="market-img">
+                    <h4>Crypto</h4>
+                    <p>Bitcoin, Ethereum & more</p>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('register')">Trade Now</button>
+                </div>
+                <div class="market-card">
+                    <img src="https://images.unsplash.com/photo-1616077168073-9b2f284bf2d9?w=200&h=200&fit=crop&crop=center" alt="Forex" class="market-img">
+                    <h4>Forex</h4>
+                    <p>Major currency pairs</p>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('register')">Trade Now</button>
+                </div>
+                <div class="market-card">
+                    <img src="https://images.unsplash.com/photo-1581093588401-fbb62a02f120?w=200&h=200&fit=crop&crop=center" alt="Commodities" class="market-img">
+                    <h4>Commodities</h4>
+                    <p>Gold, oil & more</p>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('register')">Trade Now</button>
+                </div>
+                <div class="market-card">
+                    <img src="https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=200&h=200&fit=crop&crop=center" alt="Indices" class="market-img">
+                    <h4>Indices</h4>
+                    <p>Global market indices</p>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('register')">Trade Now</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== LIVE MARKET OVERVIEW ===== -->
+    <section class="section section-alt" id="pricing">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Live Markets</div>
+                <h2 class="section-title">Market Overview</h2>
+                <p class="section-desc">Real-time market data and trending assets</p>
+            </div>
+            <div class="market-overview-grid">
+                <div class="left">
+                    <div class="market-stat-card"><span class="symbol">📈 Top Gainers</span><span class="price">NVDA</span><span class="change price-up">+12.34%</span></div>
+                    <div class="market-stat-card"><span class="symbol">📉 Top Losers</span><span class="price">TSLA</span><span class="change price-down">-4.56%</span></div>
+                    <div class="market-stat-card"><span class="symbol">🔥 Most Active</span><span class="price">AAPL</span><span class="change" style="color:var(--text-secondary);">52.3M vol</span></div>
+                    <div class="market-stat-card"><span class="symbol">₿ Trending Crypto</span><span class="price">BTC</span><span class="change price-up">+2.15%</span></div>
+                </div>
+                <div class="right">
+                    <div class="market-stat-card"><span class="symbol">📊 S&P 500</span><span class="price">5,234.50</span><span class="change price-up">+0.85%</span></div>
+                    <div class="market-stat-card"><span class="symbol">📊 NASDAQ</span><span class="price">16,742.80</span><span class="change price-up">+1.23%</span></div>
+                    <div class="market-stat-card"><span class="symbol">📊 DOW</span><span class="price">38,456.20</span><span class="change price-down">-0.34%</span></div>
+                    <div class="market-stat-card"><span class="symbol">📊 BTC Dominance</span><span class="price">52.3%</span><span class="change price-up">+0.8%</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== INVESTMENT PRODUCTS ===== -->
+    <section class="section" id="products">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Products</div>
+                <h2 class="section-title">Investment Products</h2>
+                <p class="section-desc">Choose from a variety of investment vehicles</p>
+            </div>
+            <div class="products-grid">
+                <div class="product-card">
+                    <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=200&h=200&fit=crop&crop=center" alt="Stocks" class="product-img">
+                    <h4>Individual Stocks</h4>
+                    <p>Trade thousands of global stocks</p>
+                </div>
+                <div class="product-card">
+                    <img src="https://images.unsplash.com/photo-1614027164847-1b28cfe1df60?w=200&h=200&fit=crop&crop=center" alt="ETFs" class="product-img">
+                    <h4>ETFs</h4>
+                    <p>Diversified exchange-traded funds</p>
+                </div>
+                <div class="product-card">
+                    <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=200&h=200&fit=crop&crop=center" alt="Mutual Funds" class="product-img">
+                    <h4>Mutual Funds</h4>
+                    <p>Professional managed funds</p>
+                </div>
+                <div class="product-card">
+                    <img src="https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=200&h=200&fit=crop&crop=center" alt="Fractional" class="product-img">
+                    <h4>Fractional Shares</h4>
+                    <p>Own fractions of expensive stocks</p>
+                </div>
+                <div class="product-card">
+                    <img src="https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=200&h=200&fit=crop&crop=center" alt="Retirement" class="product-img">
+                    <h4>Retirement Accounts</h4>
+                    <p>IRA, Roth IRA accounts</p>
+                </div>
+                <div class="product-card">
+                    <img src="https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=200&h=200&fit=crop&crop=center" alt="Crypto" class="product-img">
+                    <h4>Crypto Investments</h4>
+                    <p>Trade major cryptocurrencies</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== HOW IT WORKS ===== -->
+    <section class="section section-alt" id="platform">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Get Started</div>
+                <h2 class="section-title">How It Works</h2>
+                <p class="section-desc">Start investing in under 5 minutes</p>
+            </div>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <img src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=200&h=200&fit=crop&crop=center" alt="Create Account" class="step-img">
+                    <div class="step-number">1</div>
+                    <h3>Create Account</h3>
+                    <p>Sign up with email and choose your currency.</p>
+                </div>
+                <div class="step-card">
+                    <img src="https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=200&h=200&fit=crop&crop=center" alt="Verify" class="step-img">
+                    <div class="step-number">2</div>
+                    <h3>Verify Identity</h3>
+                    <p>Quick verification to activate your account.</p>
+                </div>
+                <div class="step-card">
+                    <img src="https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=200&h=200&fit=crop&crop=center" alt="Deposit" class="step-img">
+                    <div class="step-number">3</div>
+                    <h3>Deposit Funds</h3>
+                    <p>Add funds via crypto or bank transfer securely.</p>
+                </div>
+                <div class="step-card">
+                    <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=200&h=200&fit=crop&crop=center" alt="Trade" class="step-img">
+                    <div class="step-number">4</div>
+                    <h3>Start Investing</h3>
+                    <p>Buy and sell with real-time execution.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== SECURITY ===== -->
+    <section class="section" id="learn">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Security</div>
+                <h2 class="section-title">Your Safety is Our Priority</h2>
+                <p class="section-desc">Industry-leading security measures to protect your assets</p>
+            </div>
+            <div class="security-grid">
+                <div class="security-item">
+                    <img src="https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=200&h=200&fit=crop&crop=center" alt="Encryption" class="sec-img">
+                    <h4>256-bit Encryption</h4>
+                    <p>Bank-grade encryption for all data</p>
+                </div>
+                <div class="security-item">
+                    <img src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=200&h=200&fit=crop&crop=center" alt="2FA" class="sec-img">
+                    <h4>Two-Factor Authentication</h4>
+                    <p>Extra layer of account protection</p>
+                </div>
+                <div class="security-item">
+                    <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=200&h=200&fit=crop&crop=center" alt="Storage" class="sec-img">
+                    <h4>Secure Data Storage</h4>
+                    <p>Data stored with highest security standards</p>
+                </div>
+                <div class="security-item">
+                    <img src="https://images.unsplash.com/photo-1614027164847-1b28cfe1df60?w=200&h=200&fit=crop&crop=center" alt="Fraud" class="sec-img">
+                    <h4>Fraud Monitoring</h4>
+                    <p>24/7 fraud detection and prevention</p>
+                </div>
+                <div class="security-item">
+                    <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=200&h=200&fit=crop&crop=center" alt="Protection" class="sec-img">
+                    <h4>Account Protection</h4>
+                    <p>FDIC insured and SIPC protected</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== INVESTMENT TOOLS ===== -->
+    <section class="section section-alt">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Tools</div>
+                <h2 class="section-title">Investment Tools</h2>
+                <p class="section-desc">Powerful tools to help you make better investment decisions</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=200&fit=crop" alt="Portfolio" class="feature-img">
+                    <div class="feature-icon">📊</div>
+                    <h3>Portfolio Tracker</h3>
+                    <p>Track your portfolio performance in real-time</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=200&fit=crop" alt="Watchlist" class="feature-img">
+                    <div class="feature-icon">⭐</div>
+                    <h3>Watchlists</h3>
+                    <p>Follow your favorite assets</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1614027164847-1b28cfe1df60?w=400&h=200&fit=crop" alt="Alerts" class="feature-img">
+                    <div class="feature-icon">🔔</div>
+                    <h3>Price Alerts</h3>
+                    <p>Get notified on price movements</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=200&fit=crop" alt="Dividend" class="feature-img">
+                    <div class="feature-icon">📅</div>
+                    <h3>Dividend Calendar</h3>
+                    <p>Never miss a dividend payout</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=400&h=200&fit=crop" alt="Economic" class="feature-img">
+                    <div class="feature-icon">🗓️</div>
+                    <h3>Economic Calendar</h3>
+                    <p>Stay ahead of market events</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=200&fit=crop" alt="Screener" class="feature-img">
+                    <div class="feature-icon">🔍</div>
+                    <h3>Stock Screener</h3>
+                    <p>Find the best investment opportunities</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=400&h=200&fit=crop" alt="AI" class="feature-img">
+                    <div class="feature-icon">🤖</div>
+                    <h3>AI Market Insights</h3>
+                    <p>AI-powered market analysis</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=200&fit=crop" alt="Earnings" class="feature-img">
+                    <div class="feature-icon">📈</div>
+                    <h3>Earnings Calendar</h3>
+                    <p>Track company earnings reports</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== LEARNING CENTER ===== -->
+    <section class="section">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Learn</div>
+                <h2 class="section-title">Learning Center</h2>
+                <p class="section-desc">Educate yourself with our comprehensive resources</p>
+            </div>
+            <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=400&h=200&fit=crop" alt="Books" class="feature-img">
+                    <div class="feature-icon">📚</div>
+                    <h3>Beginner Guides</h3>
+                    <p>Start from scratch with investing basics</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1536240478700-b869070f9279?w=400&h=200&fit=crop" alt="Video" class="feature-img">
+                    <div class="feature-icon">🎥</div>
+                    <h3>Video Tutorials</h3>
+                    <p>Watch and learn with our video library</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=400&h=200&fit=crop" alt="Academy" class="feature-img">
+                    <div class="feature-icon">🏫</div>
+                    <h3>Investment Academy</h3>
+                    <p>Deep dive into investing strategies</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=400&h=200&fit=crop" alt="News" class="feature-img">
+                    <div class="feature-icon">📰</div>
+                    <h3>Daily Market News</h3>
+                    <p>Stay updated with market trends</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&h=200&fit=crop" alt="Blog" class="feature-img">
+                    <div class="feature-icon">✍️</div>
+                    <h3>Blog</h3>
+                    <p>Insights from investment experts</p>
+                </div>
+                <div class="feature-card">
+                    <img src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=200&fit=crop" alt="FAQ" class="feature-img">
+                    <div class="feature-icon">❓</div>
+                    <h3>FAQs</h3>
+                    <p>Answers to common questions</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== CUSTOMER TESTIMONIALS ===== -->
+    <section class="section section-alt">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Testimonials</div>
+                <h2 class="section-title">What Our Clients Say</h2>
+                <p class="section-desc">Real reviews from real investors</p>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=center" alt="John" class="testimonial-img">
+                    <div class="stars">★★★★★</div>
+                    <p class="review">"Tesla Investments has completely transformed my portfolio. The platform is intuitive, and the customer support is exceptional."</p>
+                    <div class="author"><div class="avatar">JD</div><div><div class="name">John Doe</div><div class="role">Tech Investor</div></div></div>
+                </div>
+                <div class="testimonial-card">
+                    <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=center" alt="Sarah" class="testimonial-img">
+                    <div class="stars">★★★★★</div>
+                    <p class="review">"The best trading platform I've ever used. Real-time data, zero commissions, and the mobile app is a game-changer."</p>
+                    <div class="author"><div class="avatar">SM</div><div><div class="name">Sarah Mitchell</div><div class="role">Crypto Trader</div></div></div>
+                </div>
+                <div class="testimonial-card">
+                    <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=center" alt="Alex" class="testimonial-img">
+                    <div class="stars">★★★★★</div>
+                    <p class="review">"I started with zero knowledge and now I'm confidently managing my investments. The learning resources are top-notch."</p>
+                    <div class="author"><div class="avatar">AR</div><div><div class="name">Alex Rivera</div><div class="role">Beginner Investor</div></div></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section class="section" id="contact">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">FAQ</div>
+                <h2 class="section-title">Frequently Asked Questions</h2>
+                <p class="section-desc">Find answers to common questions</p>
+            </div>
+            <div class="faq-list">
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">How do I open an account? <span class="arrow">▼</span></button>
+                    <div class="faq-answer"><p>Simply click the "Open Account" button, fill in your details, and verify your identity. It takes less than 5 minutes.</p></div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">How do I deposit funds? <span class="arrow">▼</span></button>
+                    <div class="faq-answer"><p>You can deposit funds via crypto transfer (BTC, ETH, USDT) or bank transfer. Deposits are processed instantly for crypto.</p></div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">How do I withdraw my funds? <span class="arrow">▼</span></button>
+                    <div class="faq-answer"><p>Withdrawals can be made via crypto transfer. Simply go to the Withdraw section and enter your wallet address.</p></div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">What are the trading fees? <span class="arrow">▼</span></button>
+                    <div class="faq-answer"><p>We offer zero commission trading on stocks and ETFs. Crypto trades have the lowest spreads in the industry.</p></div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">Is my money safe? <span class="arrow">▼</span></button>
+                    <div class="faq-answer"><p>Yes. We use 256-bit encryption, 2FA, and cold storage. Your funds are protected with industry-leading security measures.</p></div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">How do I verify my account? <span class="arrow">▼</span></button>
+                    <div class="faq-answer"><p>Account verification requires government-issued ID and proof of address. The process takes less than 24 hours.</p></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== MOBILE APP PROMOTION ===== -->
+    <section class="section section-alt">
+        <div class="section-container">
+            <div class="section-header">
+                <div class="section-label">Mobile App</div>
+                <h2 class="section-title">Trade Anywhere, Anytime</h2>
+                <p class="section-desc">Download the Tesla Investments mobile app for iOS and Android</p>
+            </div>
+            <div class="app-promo">
+                <div class="app-mockups">
+                    <div class="app-mockup">
+                        <img src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=300&h=500&fit=crop" alt="iPhone App" class="app-screen-img">
+                        <div class="label">iPhone App</div>
+                    </div>
+                    <div class="app-mockup">
+                        <img src="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300&h=500&fit=crop" alt="Android App" class="app-screen-img">
+                        <div class="label">Android App</div>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="font-size:1.2rem;margin-bottom:0.5rem;">Full Trading Power in Your Pocket</h3>
+                    <ul style="list-style:none;color:var(--text-secondary);font-size:0.85rem;margin-bottom:1rem;">
+                        <li style="margin-bottom:0.4rem;">✅ Real-time price tracking</li>
+                        <li style="margin-bottom:0.4rem;">✅ One-click trading</li>
+                        <li style="margin-bottom:0.4rem;">✅ Advanced charts</li>
+                        <li style="margin-bottom:0.4rem;">✅ Portfolio management</li>
+                        <li style="margin-bottom:0.4rem;">✅ Push notifications</li>
+                    </ul>
+                    <div class="app-buttons">
+                        <button class="btn btn-outline btn-sm">📲 App Store</button>
+                        <button class="btn btn-outline btn-sm">📲 Google Play</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FINAL CTA ===== -->
+    <section class="section">
+        <div class="section-container">
+            <div class="cta-banner">
+                <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1920&h=600&fit=crop" alt="Invest" class="cta-bg-img">
+                <h2>Ready to Start Your Investment Journey?</h2>
+                <p>Join 500,000+ investors and start building your wealth today.</p>
+                <button class="btn btn-primary" style="padding:0.8rem 2.5rem;font-size:1rem;" onclick="openModal('register')">Open Account Now →</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="footer" id="about">
+        <div class="footer-grid">
+            <div>
+                <h4>Tesla Investments</h4>
+                <p style="color:var(--text-muted);font-size:0.75rem;margin-bottom:0.5rem;">Trade stocks, crypto, and ETFs with zero commission.</p>
+                <div class="footer-social">
+                    <a href="#">🐦</a>
+                    <a href="#">📘</a>
+                    <a href="#">📸</a>
+                    <a href="#">💼</a>
+                    <a href="#">▶️</a>
+                </div>
+            </div>
+            <div><h4>Company</h4><ul><li><a href="#">About</a></li><li><a href="#">Careers</a></li><li><a href="#">Contact</a></li><li><a href="#">Help Center</a></li></ul></div>
+            <div><h4>Products</h4><ul><li><a href="#">Stocks</a></li><li><a href="#">Crypto</a></li><li><a href="#">ETFs</a></li><li><a href="#">Fractional Shares</a></li></ul></div>
+            <div><h4>Legal</h4><ul><li><a href="#">Privacy Policy</a></li><li><a href="#">Terms of Service</a></li><li><a href="#">Cookie Policy</a></li><li><a href="#">Risk Disclosure</a></li></ul></div>
+            <div><h4>Support</h4><ul><li><a href="#">Help Center</a></li><li><a href="#">Contact Support</a></li><li><a href="#">Community</a></li><li><a href="#">Status</a></li></ul></div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2024 Tesla Investments. All rights reserved. Trading involves risk. Past performance does not guarantee future results.</p>
+        </div>
+    </footer>
+
+    <!-- ===== SCROLLING TICKER ===== -->
+    <div class="ticker-wrap active" id="tickerWrap">
+        <div class="ticker" id="ticker">
+            <span class="ticker-item">📈 TSLA <span class="price-up">+4.56%</span></span>
+            <span class="ticker-item">₿ BTC <span class="price-up">+2.15%</span></span>
+            <span class="ticker-item">📈 AAPL <span class="price-up">+2.34%</span></span>
+            <span class="ticker-item">📉 ETH <span class="price-down">-1.84%</span></span>
+            <span class="ticker-item">📈 NVDA <span class="price-up">+12.34%</span></span>
+            <span class="ticker-item">📈 MSFT <span class="price-up">+5.67%</span></span>
+            <span class="ticker-item">📉 AMZN <span class="price-down">-1.23%</span></span>
+            <span class="ticker-item">📈 META <span class="price-up">+8.90%</span></span>
+            <span class="ticker-item">📈 GOOGL <span class="price-up">+3.45%</span></span>
+            <span class="ticker-item">📉 NFLX <span class="price-down">-2.34%</span></span>
+            <span class="ticker-item">📈 TSLA <span class="price-up">+4.56%</span></span>
+            <span class="ticker-item">₿ BTC <span class="price-up">+2.15%</span></span>
+            <span class="ticker-item">📈 AAPL <span class="price-up">+2.34%</span></span>
+            <span class="ticker-item">📉 ETH <span class="price-down">-1.84%</span></span>
+            <span class="ticker-item">📈 NVDA <span class="price-up">+12.34%</span></span>
+            <span class="ticker-item">📈 MSFT <span class="price-up">+5.67%</span></span>
+            <span class="ticker-item">📉 AMZN <span class="price-down">-1.23%</span></span>
+            <span class="ticker-item">📈 META <span class="price-up">+8.90%</span></span>
+            <span class="ticker-item">📈 GOOGL <span class="price-up">+3.45%</span></span>
+            <span class="ticker-item">📉 NFLX <span class="price-down">-2.34%</span></span>
+        </div>
+    </div>
+
+    <!-- ===== AUTH MODAL ===== -->
+    <div class="modal-overlay" id="authModal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModal()">✕</button>
+            <h2 id="modalTitle">Welcome Back</h2>
+            <p id="modalSubtitle">Sign in to your account</p>
+            <div class="error-msg" id="authError"></div>
+            <div class="success-msg" id="authSuccess"></div>
+            <div class="modal-tabs">
+                <button class="modal-tab active" onclick="switchModalTab('login')">Log In</button>
+                <button class="modal-tab" onclick="switchModalTab('register')">Sign Up</button>
+            </div>
+            <form class="form-section active" id="loginSection" onsubmit="return handleLogin(event)">
+                <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="loginEmail" placeholder="you@example.com" required></div>
+                <div class="form-group"><label class="form-label">Password</label><input type="password" class="form-input" id="loginPassword" placeholder="Enter password" required></div>
+                <button type="submit" class="btn btn-primary" id="loginBtn">Log In</button>
+            </form>
+            <form class="form-section" id="registerSection" onsubmit="return handleRegister(event)">
+                <div class="form-group"><label class="form-label">Full Name</label><input type="text" class="form-input" id="registerName" placeholder="John Doe" required></div>
+                <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="registerEmail" placeholder="you@example.com" required></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+                    <div class="form-group"><label class="form-label">Country</label><select class="form-input" id="registerCountry"><option value="">Select</option><option value="US">🇺🇸 US</option><option value="GB">🇬🇧 UK</option><option value="CA">🇨🇦 Canada</option><option value="AU">🇦🇺 Australia</option><option value="DE">🇩🇪 Germany</option><option value="FR">🇫🇷 France</option><option value="ZA">🇿🇦 South Africa</option><option value="IN">🇮🇳 India</option><option value="Other">Other</option></select></div>
+                    <div class="form-group"><label class="form-label">Currency</label><select class="form-input" id="registerCurrency"><option value="$">USD ($)</option><option value="€">EUR (€)</option><option value="£">GBP (£)</option><option value="₹">INR (₹)</option><option value="A$">AUD (A$)</option><option value="C$">CAD (C$)</option><option value="¥">JPY (¥)</option><option value="R">ZAR (R)</option></select></div>
+                </div>
+                <div class="form-group"><label class="form-label">Password</label><input type="password" class="form-input" id="registerPassword" placeholder="Min 8 characters" required minlength="8"></div>
+                <button type="submit" class="btn btn-primary" id="registerBtn">Create Account</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ===== TESLA STYLE PRELOADER =====
+        var counter = 0;
+        var preloaderInterval = setInterval(function() {
+            counter += Math.floor(Math.random() * 5) + 1;
+            if (counter > 100) counter = 100;
+            document.getElementById('preloaderCounter').textContent = counter + '%';
+            document.getElementById('preloaderBar').style.width = counter + '%';
+            if (counter >= 100) {
+                clearInterval(preloaderInterval);
+                setTimeout(function() {
+                    document.getElementById('preloader').classList.add('hidden');
+                }, 400);
+            }
+        }, 50);
+
+        // ===== MOBILE MENU =====
+        function toggleMobileMenu() {
+            document.getElementById('mobileSidebar').classList.toggle('active');
+            document.getElementById('mobileOverlay').classList.toggle('active');
+        }
+        function closeMobileMenu() {
+            document.getElementById('mobileSidebar').classList.remove('active');
+            document.getElementById('mobileOverlay').classList.remove('active');
+        }
+
+        // ===== FAQ =====
+        function toggleFAQ(btn) {
+            var answer = btn.nextElementSibling;
+            btn.classList.toggle('active');
+            answer.classList.toggle('active');
+        }
+
+        // ===== FIREBASE =====
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5HMnlx4AXBgDb60XaH8zmA8Xh0zz6ELM",
+            authDomain: "nexustrade-b06f0.firebaseapp.com",
+            projectId: "nexustrade-b06f0",
+            storageBucket: "nexustrade-b06f0.firebasestorage.app",
+            messagingSenderId: "427697879490",
+            appId: "1:427697879490:web:a41c80be45beb81b197e5b"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        if (sessionStorage.getItem('nexusLoggedOut') === 'true') {
+            auth.signOut().catch(function() {});
+            sessionStorage.removeItem('nexusLoggedOut');
+        }
+
+        auth.onAuthStateChanged(function(user) {
+            var loggedOut = sessionStorage.getItem('nexusLoggedOut');
+            if (user && loggedOut !== 'true') {
+                sessionStorage.setItem('nexusUser', JSON.stringify({ uid: user.uid, email: user.email, displayName: user.displayName || 'Trader' }));
+                saveUserToFirestore(user);
+                window.location.href = 'dashboard.html';
+            } else if (loggedOut === 'true') {
+                sessionStorage.removeItem('nexusLoggedOut');
+            }
+        });
+
+        async function saveUserToFirestore(user) {
+            try {
+                var userRef = db.collection('users').doc(user.uid);
+                var doc = await userRef.get();
+                if (!doc.exists) {
+                    await userRef.set({
+                        uid: user.uid, email: user.email, displayName: user.displayName || 'Trader',
+                        balance: 0, cryptoBalances: { BTC: 0, ETH: 0, USDT: 0 },
+                        portfolio: {}, watchlist: ['BTC', 'ETH', 'AAPL', 'MSFT'],
+                        transactions: [], orders: [], notifications: [],
+                        currency: '$', country: '', phone: '',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } else {
+                    await userRef.update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp(), displayName: user.displayName || doc.data().displayName || 'Trader', email: user.email });
+                }
+            } catch (error) {}
+        }
+
+        // ===== MODAL FUNCTIONS =====
+        function openModal(tab) { 
+            document.getElementById('authModal').classList.add('active'); 
+            if (tab === 'register') switchModalTab('register'); 
+            else switchModalTab('login'); 
+        }
+        function closeModal() { document.getElementById('authModal').classList.remove('active'); }
+        function switchModalTab(tab) {
+            var tabs = document.querySelectorAll('.modal-tab'), sections = document.querySelectorAll('.form-section');
+            for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+            for (var i = 0; i < sections.length; i++) sections[i].classList.remove('active');
+            if (tab === 'login') { 
+                tabs[0].classList.add('active'); 
+                document.getElementById('loginSection').classList.add('active'); 
+                document.getElementById('modalTitle').textContent = 'Welcome Back'; 
+                document.getElementById('modalSubtitle').textContent = 'Sign in to your account'; 
+            } else { 
+                tabs[1].classList.add('active'); 
+                document.getElementById('registerSection').classList.add('active'); 
+                document.getElementById('modalTitle').textContent = 'Create Account'; 
+                document.getElementById('modalSubtitle').textContent = 'Start your investment journey'; 
+            }
+            hideMessages();
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            var email = document.getElementById('loginEmail').value.trim(), 
+                password = document.getElementById('loginPassword').value, 
+                loginBtn = document.getElementById('loginBtn');
+            hideMessages();
+            if (!email || !password) { showError('Please fill in all fields'); return false; }
+            loginBtn.disabled = true; loginBtn.innerHTML = '<span class="spinner"></span>Signing in...';
+            try { 
+                sessionStorage.removeItem('nexusLoggedOut'); 
+                await auth.signInWithEmailAndPassword(email, password); 
+            } catch (error) { 
+                loginBtn.disabled = false; loginBtn.innerHTML = 'Log In'; 
+                if (error.code === 'auth/user-not-found') showError('No account found'); 
+                else if (error.code === 'auth/wrong-password') showError('Incorrect password'); 
+                else if (error.code === 'auth/invalid-credential') showError('Invalid email or password'); 
+                else showError('Login failed: ' + error.message); 
+            }
+            return false;
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            var name = document.getElementById('registerName').value.trim(), 
+                email = document.getElementById('registerEmail').value.trim(), 
+                country = document.getElementById('registerCountry').value, 
+                currency = document.getElementById('registerCurrency').value, 
+                password = document.getElementById('registerPassword').value, 
+                registerBtn = document.getElementById('registerBtn');
+            hideMessages();
+            if (!name || !email || !password) { showError('Please fill in all fields'); return false; }
+            if (password.length < 8) { showError('Password must be at least 8 characters'); return false; }
+            registerBtn.disabled = true; registerBtn.innerHTML = '<span class="spinner"></span>Creating account...';
+            try {
+                var userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                await userCredential.user.updateProfile({ displayName: name });
+                await db.collection('users').doc(userCredential.user.uid).set({ 
+                    uid: userCredential.user.uid, email: email, displayName: name, 
+                    balance: 0, cryptoBalances: { BTC: 0, ETH: 0, USDT: 0 }, 
+                    portfolio: {}, watchlist: ['BTC', 'ETH', 'AAPL', 'MSFT'], 
+                    transactions: [], orders: [], notifications: [], 
+                    currency: currency || '$', country: country || '', phone: '', 
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(), 
+                    lastLogin: firebase.firestore.FieldValue.serverTimestamp() 
+                });
+                showSuccess('Account created! You can now log in.');
+                registerBtn.disabled = false; registerBtn.innerHTML = 'Create Account';
+                document.getElementById('registerSection').reset();
+                setTimeout(function() { switchModalTab('login'); }, 2000);
+            } catch (error) { 
+                registerBtn.disabled = false; registerBtn.innerHTML = 'Create Account'; 
+                if (error.code === 'auth/email-already-in-use') showError('Email already registered'); 
+                else showError('Registration failed: ' + error.message); 
+            }
+            return false;
+        }
+
+        function showError(msg) { 
+            document.getElementById('authError').textContent = msg; 
+            document.getElementById('authError').classList.add('show'); 
+            document.getElementById('authSuccess').classList.remove('show'); 
+        }
+        function showSuccess(msg) { 
+            document.getElementById('authSuccess').textContent = msg; 
+            document.getElementById('authSuccess').classList.add('show'); 
+            document.getElementById('authError').classList.remove('show'); 
+        }
+        function hideMessages() { 
+            document.getElementById('authError').classList.remove('show'); 
+            document.getElementById('authSuccess').classList.remove('show'); 
+        }
+
+        document.getElementById('authModal').addEventListener('click', function(e) { 
+            if (e.target === this) closeModal(); 
+        });
+    </script>
+</body>
+</html>
