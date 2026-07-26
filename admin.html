@@ -685,6 +685,91 @@
     .pl-summary-item .value.positive { color: var(--emerald-500); }
     .pl-summary-item .value.negative { color: #ef4444; }
 
+    /* ===== CRYPTO ADDRESSES TAB ===== */
+    .address-edit-card {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .address-edit-card .crypto-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--gold-400);
+      margin-bottom: 0.5rem;
+    }
+
+    .address-edit-card .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .address-edit-card .form-group {
+      margin-bottom: 0.5rem;
+    }
+
+    .address-edit-card .form-group .form-label {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .address-edit-card .form-group .form-input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 0.8rem;
+      font-family: monospace;
+      transition: all 0.3s ease;
+    }
+
+    .address-edit-card .form-group .form-input:focus {
+      outline: none;
+      border-color: var(--tesla-red);
+    }
+
+    .address-edit-card .btn-save-address {
+      padding: 0.6rem 1.5rem;
+      background: var(--emerald-500);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      margin-top: 0.5rem;
+    }
+
+    .address-edit-card .btn-save-address:hover {
+      opacity: 0.8;
+      transform: translateY(-2px);
+    }
+
+    .address-edit-card .btn-save-address:active {
+      transform: scale(0.97);
+    }
+
+    .address-status {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: var(--radius-sm);
+      background: var(--bg-tertiary);
+      display: inline-block;
+    }
+
+    .address-status.success { color: var(--emerald-500); }
+    .address-status.error { color: #ef4444; }
+
     /* Edit Modal */
     .modal-overlay {
       display: none;
@@ -1293,6 +1378,9 @@
       .holding-edit-item .holding-row .field {
         min-width: 100%;
       }
+      .address-edit-card .form-row {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media (max-width: 480px) {
@@ -1415,6 +1503,7 @@
       <button class="admin-tab active" data-tab="users" onclick="window.switchTab('users')">👥 Users</button>
       <button class="admin-tab" data-tab="deposits" onclick="window.switchTab('deposits')">💰 Pending Deposits <span id="pendingBadge" style="background:var(--tesla-red); color:#fff; padding:0.1rem 0.5rem; border-radius:10px; font-size:0.6rem; margin-left:0.3rem;">0</span></button>
       <button class="admin-tab" data-tab="plmanager" onclick="window.switchTab('plmanager')">📈 P&L Manager</button>
+      <button class="admin-tab" data-tab="addresses" onclick="window.switchTab('addresses')">🏦 Crypto Addresses</button>
     </div>
 
     <!-- TAB 1: Users -->
@@ -1470,6 +1559,17 @@
       </div>
       <div id="plManagerContainer">
         <div class="loading"><div class="spinner"></div><div style="margin-top:0.5rem;">Loading user portfolios...</div></div>
+      </div>
+    </div>
+
+    <!-- TAB 4: CRYPTO ADDRESSES -->
+    <div class="tab-content" id="tabAddresses">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+        <h3 style="font-size:1rem;">🏦 Crypto Deposit Addresses</h3>
+        <button class="btn btn-primary" onclick="window.loadCryptoAddresses()">🔄 Refresh</button>
+      </div>
+      <div id="cryptoAddressesContainer">
+        <div class="loading"><div class="spinner"></div><div style="margin-top:0.5rem;">Loading addresses...</div></div>
       </div>
     </div>
   </div>
@@ -1671,6 +1771,13 @@
       'AMZN': 178.23, 'NVDA': 875.34, 'META': 467.89, 'NFLX': 625.89
     };
 
+    // Default crypto addresses
+    const DEFAULT_CRYPTO_ADDRESSES = {
+      BTC: { address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', network: 'Bitcoin', minDeposit: '0.0001 BTC' },
+      ETH: { address: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1', network: 'Ethereum (ERC-20)', minDeposit: '0.01 ETH' },
+      USDT: { address: 'TXFy7h8mQwLxGnKj4Bbq6F92R3pNcVdAe9', network: 'TRC-20', minDeposit: '10 USDT' }
+    };
+
     // State
     let allUsers = [];
     let editingUser = null;
@@ -1678,6 +1785,7 @@
     let currentEditData = {};
     let allTransactionsCache = [];
     let pendingDeposits = [];
+    let cryptoAddressesData = {};
 
     // ============================================
     // CHECK ADMIN SETUP
@@ -1838,20 +1946,41 @@
     };
 
     // ============================================
-    // TAB SWITCHING
+    // TAB SWITCHING - FIXED
     // ============================================
 
     window.switchTab = function(tab) {
+      // Remove active from all tabs
       document.querySelectorAll('.admin-tab').forEach(btn => btn.classList.remove('active'));
-      document.querySelector(`.admin-tab[data-tab="${tab}"]`).classList.add('active');
       
+      // Add active to clicked tab
+      const tabBtn = document.querySelector(`.admin-tab[data-tab="${tab}"]`);
+      if (tabBtn) tabBtn.classList.add('active');
+      
+      // Hide all tab contents
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-      document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.add('active');
       
+      // Show the correct tab content
+      const tabMap = {
+        'users': 'tabUsers',
+        'deposits': 'tabDeposits',
+        'plmanager': 'tabPLManager',
+        'addresses': 'tabAddresses'
+      };
+      
+      const tabId = tabMap[tab];
+      if (tabId) {
+        const content = document.getElementById(tabId);
+        if (content) content.classList.add('active');
+      }
+      
+      // Load data for specific tabs
       if (tab === 'deposits') {
         loadPendingDeposits();
       } else if (tab === 'plmanager') {
         loadPLManager();
+      } else if (tab === 'addresses') {
+        loadCryptoAddresses();
       }
     };
 
@@ -2161,13 +2290,12 @@
     };
 
     // ============================================
-    // ===== P&L MANAGER - FIXED =====
+    // ===== P&L MANAGER =====
     // ============================================
 
     window.loadPLManager = async function() {
       const container = document.getElementById('plManagerContainer');
       
-      // Show loading state immediately
       container.innerHTML = `
         <div class="loading">
           <div class="spinner"></div>
@@ -2193,7 +2321,6 @@
           });
         });
 
-        // Check if there are no users at all
         if (users.length === 0) {
           container.innerHTML = `
             <div class="empty-state" style="padding:3rem;">
@@ -2223,7 +2350,6 @@
     function renderPLManager(users) {
       const container = document.getElementById('plManagerContainer');
       
-      // Safety check
       if (!users || users.length === 0) {
         container.innerHTML = `
           <div class="empty-state" style="padding:3rem;">
@@ -2250,12 +2376,10 @@
         let userValue = 0;
         let holdings = [];
 
-        // Process stock holdings from portfolio
         for (const [symbol, holding] of Object.entries(portfolio)) {
           const price = ASSET_PRICES[symbol] || 0;
           const shares = holding.shares || 0;
           
-          // Skip if shares is 0 or invalid
           if (shares <= 0) continue;
           
           const avgPrice = holding.avgPrice || 0;
@@ -2263,7 +2387,6 @@
           const value = shares * price;
           let pl = value - cost;
           
-          // Add admin adjustment if it exists
           const adminAdjustment = holding.adminPLAdjustment || 0;
           const displayedPL = pl + adminAdjustment;
           
@@ -2289,7 +2412,6 @@
           });
         }
 
-        // Process crypto holdings
         for (const [symbol, amount] of Object.entries(cryptoBalances)) {
           if (amount > 0) {
             const price = ASSET_PRICES[symbol] || 0;
@@ -2312,16 +2434,13 @@
           }
         }
 
-        // Sort holdings by value
         holdings.sort((a, b) => b.value - a.value);
 
         const userPLPercent = userCost > 0 ? (userPL / userCost) * 100 : 0;
         const plColor = userPL >= 0 ? 'positive' : 'negative';
         
-        // Track if user has any holdings
         if (holdings.length > 0) usersWithHoldings++;
 
-        // Build holdings HTML
         let holdingsHTML = '';
         if (holdings.length === 0) {
           holdingsHTML = `
@@ -2397,7 +2516,6 @@
         `;
       });
 
-      // Build summary - show proper message if no users have holdings
       const totalPLColor = totalPL >= 0 ? 'positive' : 'negative';
       let summaryHTML = '';
       
@@ -2447,7 +2565,6 @@
         return;
       }
       
-      // Calculate total cost of user's holdings
       let totalCost = 0;
       const portfolio = user.portfolio || {};
       for (const [symbol, holding] of Object.entries(portfolio)) {
@@ -2500,17 +2617,14 @@
       }
 
       try {
-        // Update user balance
         await db.collection('users').doc(userId).update({
           balance: firebase.firestore.FieldValue.increment(amount)
         });
 
-        // Also add to portfolio as admin adjustment
         const userDoc = await db.collection('users').doc(userId).get();
         const userData = userDoc.data();
         const portfolio = userData.portfolio || {};
         
-        // Add adjustment to first holding or create one
         const symbols = Object.keys(portfolio);
         if (symbols.length > 0) {
           const firstSymbol = symbols[0];
@@ -2522,7 +2636,6 @@
           });
         }
 
-        // Add transaction record
         const transactions = userData.transactions || [];
         transactions.push({
           type: type === 'profit' ? 'Profit' : 'Loss',
@@ -2555,6 +2668,140 @@
       } catch (error) {
         console.error('Error applying P&L:', error);
         showToast('❌ Error applying P&L: ' + error.message, 'error');
+      }
+    };
+
+    // ============================================
+    // ===== CRYPTO ADDRESSES - NEW =====
+    // ============================================
+
+    window.loadCryptoAddresses = async function() {
+      const container = document.getElementById('cryptoAddressesContainer');
+      
+      container.innerHTML = `
+        <div class="loading">
+          <div class="spinner"></div>
+          <div style="margin-top:0.5rem;">Loading crypto addresses...</div>
+        </div>
+      `;
+
+      try {
+        const doc = await db.collection('settings').doc('cryptoAddresses').get();
+        
+        if (doc.exists) {
+          cryptoAddressesData = doc.data();
+        } else {
+          // Create default addresses if not exist
+          await db.collection('settings').doc('cryptoAddresses').set(DEFAULT_CRYPTO_ADDRESSES);
+          cryptoAddressesData = { ...DEFAULT_CRYPTO_ADDRESSES };
+        }
+
+        renderCryptoAddresses();
+
+      } catch (error) {
+        console.error('Error loading crypto addresses:', error);
+        container.innerHTML = `
+          <div class="empty-state" style="padding:3rem;">
+            <div style="font-size:3rem; margin-bottom:1rem;">⚠️</div>
+            <h3 style="color:var(--tesla-red); margin-bottom:0.5rem;">Error Loading Addresses</h3>
+            <p style="color:var(--text-muted);">${error.message}</p>
+            <button class="btn btn-primary" style="margin-top:1rem; width:auto;" onclick="window.loadCryptoAddresses()">🔄 Try Again</button>
+          </div>
+        `;
+      }
+    };
+
+    function renderCryptoAddresses() {
+      const container = document.getElementById('cryptoAddressesContainer');
+      
+      if (!cryptoAddressesData || Object.keys(cryptoAddressesData).length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="padding:3rem;">
+            <div style="font-size:3rem; margin-bottom:1rem;">🏦</div>
+            <h3 style="color:var(--text-primary); margin-bottom:0.5rem;">No Addresses Found</h3>
+            <p style="color:var(--text-muted);">No crypto addresses have been configured yet.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const cryptos = ['BTC', 'ETH', 'USDT'];
+      const cryptoIcons = { 'BTC': '₿', 'ETH': 'Ξ', 'USDT': '₮' };
+      const cryptoColors = { 'BTC': '#f59e0b', 'ETH': '#8b5cf6', 'USDT': '#10b981' };
+      
+      let html = '';
+
+      cryptos.forEach(symbol => {
+        const data = cryptoAddressesData[symbol] || { address: '', network: '', minDeposit: '' };
+        
+        html += `
+          <div class="address-edit-card">
+            <div class="crypto-label" style="color:${cryptoColors[symbol]};">
+              ${cryptoIcons[symbol]} ${symbol} - ${symbol === 'BTC' ? 'Bitcoin' : symbol === 'ETH' ? 'Ethereum' : 'Tether'}
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Deposit Address</label>
+                <input type="text" class="form-input" id="addr_${symbol}" value="${data.address || ''}" placeholder="Enter wallet address">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Network</label>
+                <input type="text" class="form-input" id="network_${symbol}" value="${data.network || ''}" placeholder="e.g. Bitcoin, ERC-20, TRC-20">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Minimum Deposit</label>
+              <input type="text" class="form-input" id="min_${symbol}" value="${data.minDeposit || ''}" placeholder="e.g. 0.0001 BTC">
+            </div>
+            <button class="btn-save-address" onclick="window.saveCryptoAddress('${symbol}')">💾 Save ${symbol} Address</button>
+            <div class="address-status" id="status_${symbol}">Ready to save</div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    window.saveCryptoAddress = async function(symbol) {
+      const address = document.getElementById(`addr_${symbol}`).value.trim();
+      const network = document.getElementById(`network_${symbol}`).value.trim();
+      const minDeposit = document.getElementById(`min_${symbol}`).value.trim();
+      const statusEl = document.getElementById(`status_${symbol}`);
+
+      if (!address) {
+        statusEl.textContent = '❌ Please enter a wallet address';
+        statusEl.className = 'address-status error';
+        return;
+      }
+
+      try {
+        statusEl.textContent = '⏳ Saving...';
+        statusEl.className = 'address-status';
+
+        const updatedData = { ...cryptoAddressesData };
+        updatedData[symbol] = {
+          address: address,
+          network: network || (symbol === 'BTC' ? 'Bitcoin' : symbol === 'ETH' ? 'Ethereum (ERC-20)' : 'TRC-20'),
+          minDeposit: minDeposit || (symbol === 'BTC' ? '0.0001 BTC' : symbol === 'ETH' ? '0.01 ETH' : '10 USDT')
+        };
+
+        await db.collection('settings').doc('cryptoAddresses').set(updatedData);
+        cryptoAddressesData = updatedData;
+
+        statusEl.textContent = '✅ Address saved successfully!';
+        statusEl.className = 'address-status success';
+        showToast(`✅ ${symbol} address updated successfully`, 'success');
+
+        setTimeout(() => {
+          statusEl.textContent = 'Ready to save';
+          statusEl.className = 'address-status';
+        }, 3000);
+
+      } catch (error) {
+        console.error('Error saving address:', error);
+        statusEl.textContent = '❌ Error: ' + error.message;
+        statusEl.className = 'address-status error';
+        showToast('❌ Error saving address: ' + error.message, 'error');
       }
     };
 
@@ -3264,8 +3511,9 @@
       }
     });
 
-    console.log('✅ Admin Dashboard loaded with P&L Manager');
-    console.log('📊 P&L Manager now shows holdings, "No holdings" messages, and loading states');
+    console.log('✅ Admin Dashboard loaded with P&L Manager & Crypto Addresses');
+    console.log('📊 P&L Manager shows holdings and admin adjustments');
+    console.log('🏦 Crypto Addresses tab added for editing deposit addresses');
   </script>
 </body>
 </html>
