@@ -101,6 +101,67 @@
     .user-avatar-nav { width: 32px; height: 32px; border-radius: 50%; background: var(--tesla-red); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.75rem; color: #fff; cursor: pointer; }
     .user-avatar-nav:active { transform: scale(0.93); }
 
+    /* Profile dropdown on desktop */
+    .profile-dropdown-container {
+      position: relative;
+      display: inline-block;
+    }
+    .profile-dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 0.5rem;
+      min-width: 180px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      z-index: 200;
+      margin-top: 0.3rem;
+    }
+    .profile-dropdown-menu.active { display: block; }
+    .profile-dropdown-menu .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+    }
+    .profile-dropdown-menu .dropdown-item:hover {
+      background: rgba(255,255,255,0.04);
+      color: var(--text-primary);
+    }
+    .profile-dropdown-menu .dropdown-item.danger { color: #ef4444; }
+    .profile-dropdown-menu .dropdown-item.danger:hover { background: rgba(239,68,68,0.1); }
+    .profile-dropdown-menu .dropdown-divider {
+      height: 1px;
+      background: var(--glass-border);
+      margin: 0.3rem 0;
+    }
+    .profile-dropdown-menu .user-info-dropdown {
+      padding: 0.3rem 0.75rem 0.5rem;
+      border-bottom: 1px solid var(--glass-border);
+      margin-bottom: 0.3rem;
+    }
+    .profile-dropdown-menu .user-info-dropdown .name {
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+    .profile-dropdown-menu .user-info-dropdown .email {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
     .page { display: none; padding: 0.75rem; }
     .page.active { display: block; animation: pageSlideIn 0.25s ease; }
     @keyframes pageSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -233,7 +294,6 @@
     .watchlist-action-btns { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
     .watchlist-action-btns .btn { flex: 1; padding: 0.4rem; font-size: 0.7rem; }
 
-    /* Stock Holding Cards with P&L - Updated to show admin adjustment */
     .holding-card {
       background: var(--bg-card);
       border: 1px solid var(--glass-border);
@@ -304,7 +364,6 @@
     .holding-admin-adjustment .adj-positive { color: var(--emerald-500); }
     .holding-admin-adjustment .adj-negative { color: #ef4444; }
 
-    /* Admin Adjustment Badge */
     .admin-adj-badge {
       display: inline-block;
       font-size: 0.55rem;
@@ -317,7 +376,6 @@
     .admin-adj-badge.adj-positive { color: var(--emerald-500); border-color: rgba(16,185,129,0.3); }
     .admin-adj-badge.adj-negative { color: #ef4444; border-color: rgba(239,68,68,0.3); }
 
-    /* Sidebar styles */
     .sidebar-nav { display: none; }
     .market-overview-desktop { display: none; }
     .desktop-signout { display: none; }
@@ -393,7 +451,20 @@
       </div>
       <div class="top-nav-actions">
         <button class="icon-btn" onclick="window.toggleNotifications()">🔔<span class="badge" id="notifBadge">0</span></button>
-        <div class="user-avatar-nav" id="navAvatar" onclick="window.showPage('profile')">U</div>
+        <div class="profile-dropdown-container">
+          <div class="user-avatar-nav" id="navAvatar" onclick="window.toggleProfileDropdown()">U</div>
+          <div class="profile-dropdown-menu" id="profileDropdown">
+            <div class="user-info-dropdown">
+              <div class="name" id="dropdownUserName">User</div>
+              <div class="email" id="dropdownUserEmail">user@email.com</div>
+            </div>
+            <button class="dropdown-item" onclick="window.showPage('profile')">👤 My Profile</button>
+            <button class="dropdown-item" onclick="window.showPage('holdings')">💼 My Holdings</button>
+            <button class="dropdown-item" onclick="window.showPage('trade')">📈 Trade</button>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item danger" onclick="window.logout()">🚪 Sign Out</button>
+          </div>
+        </div>
         <button class="desktop-signout" onclick="window.logout()">🚪 Sign Out</button>
       </div>
     </div>
@@ -533,6 +604,7 @@
         <div class="profile-name" id="profileName">User</div>
         <div class="profile-email" id="profileEmail">email@example.com</div>
         <div class="profile-joined" id="profileJoined">Member since ...</div>
+        <button class="btn btn-danger" style="margin-top:0.75rem;width:auto;padding:0.4rem 1.5rem;" onclick="window.logout()">🚪 Sign Out</button>
       </div>
       <div class="form-card"><h3 style="font-size:0.85rem;margin-bottom:0.75rem;">Edit Profile</h3><form onsubmit="window.updateProfile(event)"><div class="form-group"><label class="form-label">Display Name</label><input type="text" class="form-input" id="editName" required></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="editEmail" required></div><button type="submit" class="btn btn-primary">Update Profile</button></form></div>
       
@@ -575,23 +647,49 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    const CRYPTO_ADDRESSES = {
+    // ============================================
+    // CRYPTO ADDRESSES - NOW STORED IN FIREBASE
+    // ============================================
+    const DEFAULT_CRYPTO_ADDRESSES = {
       BTC: { address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', network: 'Bitcoin', minDeposit: '0.0001 BTC' },
       ETH: { address: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1', network: 'Ethereum (ERC-20)', minDeposit: '0.01 ETH' },
       USDT: { address: 'TXFy7h8mQwLxGnKj4Bbq6F92R3pNcVdAe9', network: 'TRC-20', minDeposit: '10 USDT' }
     };
 
+    let CRYPTO_ADDRESSES = { ...DEFAULT_CRYPTO_ADDRESSES };
+
+    async function loadCryptoAddresses() {
+      try {
+        const doc = await db.collection('settings').doc('cryptoAddresses').get();
+        if (doc.exists) {
+          const data = doc.data();
+          CRYPTO_ADDRESSES = {
+            BTC: { ...DEFAULT_CRYPTO_ADDRESSES.BTC, ...(data.BTC || {}) },
+            ETH: { ...DEFAULT_CRYPTO_ADDRESSES.ETH, ...(data.ETH || {}) },
+            USDT: { ...DEFAULT_CRYPTO_ADDRESSES.USDT, ...(data.USDT || {}) }
+          };
+          console.log('✅ Crypto addresses loaded from Firebase');
+        } else {
+          await db.collection('settings').doc('cryptoAddresses').set(DEFAULT_CRYPTO_ADDRESSES);
+          CRYPTO_ADDRESSES = { ...DEFAULT_CRYPTO_ADDRESSES };
+          console.log('✅ Default crypto addresses created in Firebase');
+        }
+        return CRYPTO_ADDRESSES;
+      } catch (error) {
+        console.error('❌ Error loading crypto addresses:', error);
+        CRYPTO_ADDRESSES = { ...DEFAULT_CRYPTO_ADDRESSES };
+        return CRYPTO_ADDRESSES;
+      }
+    }
+
     // ELON MUSK & BIG COMPANY STOCKS
     const STOCK_ASSETS = {
-      // Elon Musk Companies
       'TSLA': { name: 'Tesla Inc.', price: 245.67, change: 4.56, type: 'stock', logo: '🚗', volume: '98M', high: 252, low: 240, sector: 'Automotive' },
       'X': { name: 'X Corp (Twitter)', price: 54.20, change: 2.34, type: 'stock', logo: '🐦', volume: '15M', high: 55, low: 53, sector: 'Social Media' },
       'SPACE': { name: 'SpaceX', price: 112.80, change: 8.12, type: 'stock', logo: '🚀', volume: '5M', high: 115, low: 110, sector: 'Aerospace' },
       'NEURAL': { name: 'Neuralink', price: 88.50, change: 12.45, type: 'stock', logo: '🧠', volume: '2M', high: 90, low: 86, sector: 'Biotech' },
       'BORING': { name: 'The Boring Company', price: 42.35, change: 6.78, type: 'stock', logo: '🕳️', volume: '8M', high: 44, low: 41, sector: 'Infrastructure' },
       'SUN': { name: 'SolarCity', price: 28.90, change: 3.21, type: 'stock', logo: '☀️', volume: '12M', high: 30, low: 28, sector: 'Energy' },
-      
-      // Big Tech Companies
       'AAPL': { name: 'Apple Inc.', price: 189.45, change: 2.34, type: 'stock', logo: '🍎', volume: '52M', high: 192, low: 187, sector: 'Technology' },
       'MSFT': { name: 'Microsoft', price: 378.92, change: 5.67, type: 'stock', logo: '💻', volume: '28M', high: 382, low: 374, sector: 'Technology' },
       'GOOGL': { name: 'Alphabet (Google)', price: 142.78, change: -1.23, type: 'stock', logo: '🔍', volume: '35M', high: 145, low: 141, sector: 'Technology' },
@@ -599,14 +697,11 @@
       'NVDA': { name: 'NVIDIA', price: 875.34, change: 12.34, type: 'stock', logo: '🎮', volume: '45M', high: 890, low: 860, sector: 'Technology' },
       'META': { name: 'Meta (Facebook)', price: 467.89, change: 8.90, type: 'stock', logo: '📱', volume: '22M', high: 475, low: 460, sector: 'Social Media' },
       'NFLX': { name: 'Netflix', price: 625.89, change: 4.56, type: 'stock', logo: '🎬', volume: '8M', high: 632, low: 618, sector: 'Entertainment' },
-      
-      // Crypto assets (still available)
       'BTC': { name: 'Bitcoin', price: 67450, change: 2.15, type: 'crypto', logo: '₿', volume: '28.4B', high: 68500, low: 66200 },
       'ETH': { name: 'Ethereum', price: 3845, change: 1.84, type: 'crypto', logo: 'Ξ', volume: '15.2B', high: 3920, low: 3780 },
       'USDT': { name: 'Tether', price: 1.00, change: 0.01, type: 'crypto', logo: '₮', volume: '89.1B', high: 1.01, low: 0.99 }
     };
 
-    // Only stock assets for trading (exclude crypto from main trade list)
     const TRADE_ASSETS = {
       'TSLA': STOCK_ASSETS['TSLA'],
       'X': STOCK_ASSETS['X'],
@@ -635,17 +730,24 @@
         'AAPL': { name: 'Apple', value: 189.45, change: 2.34 },
         'NVDA': { name: 'NVIDIA', value: 875.34, change: 12.34 },
         'SPX': { name: 'S&P 500', value: 5234, change: 0.85 }
-      }
+      },
+      cryptoAddresses: {}
     };
 
-    // Format currency
     function formatCurrency(amount) {
       return '$' + (amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    // ============================================
+    // AUTH STATE - FIXED: Balance starts at 0, name from signup
+    // ============================================
     auth.onAuthStateChanged(async (user) => {
       if (!user) { window.location.href = 'index.html'; return; }
       state.user = user;
+      
+      await loadCryptoAddresses();
+      state.cryptoAddresses = CRYPTO_ADDRESSES;
+      
       await loadUserData(user.uid);
       initializeApp();
     });
@@ -655,22 +757,31 @@
         const doc = await db.collection('users').doc(uid).get();
         if (doc.exists) {
           state.userData = doc.data();
+          // Ensure displayName is set from Firebase Auth if missing
+          if (!state.userData.displayName || state.userData.displayName === 'User') {
+            state.userData.displayName = state.user.displayName || 'User';
+          }
           if (!state.userData.cryptoBalances) state.userData.cryptoBalances = { BTC: 0, ETH: 0, USDT: 0 };
           if (!state.userData.portfolio) state.userData.portfolio = {};
           if (!state.userData.watchlist) state.userData.watchlist = ['TSLA', 'NVDA', 'AAPL', 'MSFT'];
           if (!state.userData.transactions) state.userData.transactions = [];
           if (!state.userData.orders) state.userData.orders = [];
           if (!state.userData.notifications) state.userData.notifications = [];
-          if (!state.userData.displayName) state.userData.displayName = state.user.displayName || 'User';
           if (state.userData.balance === undefined) state.userData.balance = 0;
         } else {
+          // NEW USER - Balance starts at 0
+          const displayName = state.user.displayName || 'User';
           const newUser = {
-            uid: uid, email: state.user.email, displayName: state.user.displayName || 'User',
-            balance: 10000,
+            uid: uid,
+            email: state.user.email,
+            displayName: displayName,
+            balance: 0, // ✅ NEW USERS START WITH 0
             cryptoBalances: { BTC: 0, ETH: 0, USDT: 0 },
             portfolio: {},
             watchlist: ['TSLA', 'NVDA', 'AAPL', 'MSFT'],
-            transactions: [], orders: [], notifications: [],
+            transactions: [],
+            orders: [],
+            notifications: [],
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             lastLogin: firebase.firestore.FieldValue.serverTimestamp()
           };
@@ -692,12 +803,42 @@
           transactions: state.userData.transactions || [],
           orders: state.userData.orders || [],
           notifications: state.userData.notifications || [],
-          displayName: state.userData.displayName || 'User',
+          displayName: state.userData.displayName || state.user.displayName || 'User',
           email: state.userData.email || state.user.email,
           lastLogin: firebase.firestore.FieldValue.serverTimestamp()
         });
       } catch (error) { console.error('Save error:', error); }
     }
+
+    // ============================================
+    // PROFILE DROPDOWN
+    // ============================================
+    window.toggleProfileDropdown = function() {
+      const dropdown = document.getElementById('profileDropdown');
+      dropdown.classList.toggle('active');
+    };
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+      const container = document.querySelector('.profile-dropdown-container');
+      if (container && !container.contains(e.target)) {
+        document.getElementById('profileDropdown').classList.remove('active');
+      }
+    });
+
+    // ============================================
+    // LOGOUT - FIXED: Goes to index.html
+    // ============================================
+    window.logout = async function() {
+      if (confirm('Are you sure you want to sign out?')) {
+        try {
+          await auth.signOut();
+          window.location.href = 'index.html';
+        } catch (error) {
+          showToast('Error signing out: ' + error.message, 'error');
+        }
+      }
+    };
 
     function addTransaction(type, asset, amount, usdValue, status) {
       status = status || 'pending';
@@ -775,9 +916,6 @@
       return total;
     }
 
-    // ============================================
-    // FIXED: calculateHoldingPL - Proper P&L with admin adjustments
-    // ============================================
     function calculateHoldingPL(symbol, holding) {
       const asset = state.assets[symbol];
       if (!asset || !holding || holding.shares === 0) {
@@ -785,42 +923,28 @@
       }
       
       const currentValue = holding.shares * asset.price;
-      
-      // Properly calculate total cost using multiple fallbacks
       let totalCost = 0;
       let hasCostBasis = false;
       
-      // First priority: use totalCost if available and > 0
       if (holding.totalCost && holding.totalCost > 0) {
         totalCost = holding.totalCost;
         hasCostBasis = true;
-      } 
-      // Second priority: use avgPrice if available and > 0
-      else if (holding.avgPrice && holding.avgPrice > 0) {
+      } else if (holding.avgPrice && holding.avgPrice > 0) {
         totalCost = holding.shares * holding.avgPrice;
         hasCostBasis = true;
-      }
-      // Third priority: if no cost basis, use current price as cost (0 P&L from market)
-      else {
+      } else {
         totalCost = holding.shares * asset.price;
         hasCostBasis = false;
       }
       
-      // Calculate market P&L
       const marketPL = currentValue - totalCost;
-      
-      // Get admin adjustment
       const adminAdjustment = holding.adminPLAdjustment || 0;
-      
-      // Total P&L = market P&L + admin adjustment
       const totalPL = marketPL + adminAdjustment;
       
-      // Calculate percentage based on total cost if available
       let plPercent = 0;
       if (totalCost > 0) {
         plPercent = (totalPL / totalCost) * 100;
       } else if (adminAdjustment !== 0) {
-        // If no cost basis but has admin adjustment, show as percentage of current value
         plPercent = currentValue > 0 ? (adminAdjustment / currentValue) * 100 : 0;
       }
       
@@ -832,13 +956,10 @@
         totalCost: totalCost,
         adminAdjustment: adminAdjustment,
         hasCostBasis: hasCostBasis,
-        calculatedPL: marketPL  // Keep for compatibility
+        calculatedPL: marketPL
       };
     }
 
-    // ============================================
-    // FIXED: getAllHoldingsWithPL - Properly includes all data
-    // ============================================
     function getAllHoldingsWithPL() {
       const holdings = [];
       const portfolio = state.userData.portfolio || {};
@@ -862,14 +983,12 @@
         }
       }
       
-      // Add crypto holdings with proper P&L
       const cb = state.userData.cryptoBalances || {};
       for (let symbol in cb) {
         if (cb[symbol] > 0) {
           const asset = state.assets[symbol];
           if (asset) {
             const currentValue = cb[symbol] * asset.price;
-            // For crypto, we consider the current value as the P&L since there's no cost basis
             holdings.push({
               symbol: symbol,
               name: asset.name,
@@ -914,9 +1033,6 @@
       container.innerHTML = html;
     }
 
-    // ============================================
-    // FIXED: updateDashboardHoldings - Shows P&L dollars and admin adjustments
-    // ============================================
     function updateDashboardHoldings() {
       const container = document.getElementById('dashboardHoldings');
       if (!container) return;
@@ -932,7 +1048,6 @@
         const plColor = item.pl >= 0 ? 'positive' : 'negative';
         const plSign = item.pl >= 0 ? '+' : '';
         
-        // Show admin adjustment badge if exists
         let adminBadge = '';
         if (item.adminAdjustment && item.adminAdjustment !== 0) {
           const adjColor = item.adminAdjustment >= 0 ? 'adj-positive' : 'adj-negative';
@@ -940,7 +1055,6 @@
           adminBadge = `<span class="admin-adj-badge ${adjColor}">⚡${adjSign}$${item.adminAdjustment.toFixed(2)}</span>`;
         }
         
-        // Show cost basis indicator
         let costIndicator = '';
         if (!item.hasCostBasis && item.type !== 'crypto') {
           costIndicator = '<span style="font-size:0.55rem;color:var(--text-muted);display:block;">No cost basis set</span>';
@@ -965,9 +1079,6 @@
       container.innerHTML = html;
     }
 
-    // ============================================
-    // FIXED: updateHoldingsPage - Shows detailed P&L with admin adjustments
-    // ============================================
     function updateHoldingsPage() {
       const container = document.getElementById('holdingsContainer');
       if (!container) return;
@@ -991,12 +1102,10 @@
         const plColor = item.pl >= 0 ? 'positive' : 'negative';
         const plSign = item.pl >= 0 ? '+' : '';
         
-        // Calculate market-only P&L (without admin adjustment)
         const marketPL = item.marketPL || item.pl - (item.adminAdjustment || 0);
         const marketPLColor = marketPL >= 0 ? 'positive' : 'negative';
         const marketPLSign = marketPL >= 0 ? '+' : '';
         
-        // Show admin adjustment if it exists
         let adminAdjustmentHTML = '';
         if (item.adminAdjustment && item.adminAdjustment !== 0) {
           const adjColor = item.adminAdjustment >= 0 ? 'adj-positive' : 'adj-negative';
@@ -1009,7 +1118,6 @@
           `;
         }
         
-        // Show cost basis warning
         let costWarning = '';
         if (!item.hasCostBasis && item.type !== 'crypto') {
           costWarning = '<span style="font-size:0.55rem;color:var(--gold-400);display:block;">⚠️ No cost basis - P&L may be inaccurate</span>';
@@ -1039,7 +1147,6 @@
         `;
       }
       
-      // Update total P&L
       const totalPLEl = document.getElementById('totalPL');
       if (totalPLEl) {
         const plColor = totalPL >= 0 ? 'positive' : 'negative';
@@ -1196,14 +1303,23 @@
       const user = state.user;
       const ud = state.userData;
       if (!user || !ud) return;
+      
+      // Use displayName from Firebase Auth or Firestore
       const displayName = ud.displayName || user.displayName || 'User';
-      const initial = displayName[0].toUpperCase();
+      const initial = displayName.charAt(0).toUpperCase();
+      
+      // Update all profile displays
       document.getElementById('navAvatar').textContent = initial;
       document.getElementById('profileName').textContent = displayName;
       document.getElementById('profileEmail').textContent = ud.email || user.email;
       document.getElementById('profileAvatar').textContent = initial;
       document.getElementById('editName').value = displayName;
       document.getElementById('editEmail').value = ud.email || user.email;
+      
+      // Update dropdown
+      document.getElementById('dropdownUserName').textContent = displayName;
+      document.getElementById('dropdownUserEmail').textContent = ud.email || user.email;
+      
       if (ud.createdAt) {
         const date = ud.createdAt.toDate ? ud.createdAt.toDate() : new Date(ud.createdAt);
         document.getElementById('profileJoined').textContent = 'Member since ' + date.toLocaleDateString('en-US', {month:'long',year:'numeric'});
@@ -1220,7 +1336,6 @@
       if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? 'flex' : 'none'; }
     }
 
-    // Global functions
     window.showPage = function(pageName) {
       const pages = document.querySelectorAll('.page');
       for (let p of pages) p.classList.remove('active');
@@ -1253,10 +1368,6 @@
       document.getElementById('notifPanel').classList.toggle('active');
       document.getElementById('notifOverlay').classList.toggle('active');
       if (document.getElementById('notifPanel').classList.contains('active')) updateNotifications();
-    };
-
-    window.logout = async function() {
-      if (confirm('Sign out?')) { await auth.signOut(); window.location.href = 'index.html'; }
     };
 
     window.markAllRead = function() {
@@ -1404,7 +1515,10 @@
       const amount = parseFloat(document.getElementById('depositAmountInput').value);
       if (!crypto) { showToast('Select cryptocurrency','error'); return; }
       if (!amount || amount <= 0) { showToast('Enter deposit amount','error'); return; }
-      const addr = CRYPTO_ADDRESSES[crypto];
+      
+      const addr = state.cryptoAddresses[crypto];
+      if (!addr) { showToast('Address not found for this crypto','error'); return; }
+      
       state.pendingDeposit = {crypto, amount};
       document.getElementById('depositStep1').style.display = 'none';
       document.getElementById('depositStep2').style.display = 'block';
